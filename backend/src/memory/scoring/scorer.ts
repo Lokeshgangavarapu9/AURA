@@ -65,8 +65,8 @@ export class MemoryScorer {
     const contextScore = this.calculateContextScore(fact, queryKeywords);
     const isPinned = (fact as any).isPinned === true;
 
-    // Calculate weighted sum
-    let finalScore =
+    // Base deterministic weighted sum before relationship-aware signal scaling.
+    const baseScore =
       importanceScore * SCORING_CONFIG.WEIGHT_IMPORTANCE +
       recencyScore * SCORING_CONFIG.WEIGHT_RECENCY +
       frequencyScore * SCORING_CONFIG.WEIGHT_FREQUENCY +
@@ -74,17 +74,12 @@ export class MemoryScorer {
       relationshipScore * SCORING_CONFIG.WEIGHT_RELATIONSHIP +
       contextScore * SCORING_CONFIG.WEIGHT_CONTEXT;
 
-    // Phase 4.1 Refinement: Apply MemoryWeight = GlobalEmotionWeight × MemoryEmotionAffinity
-    if (emotionalWeight !== undefined && emotionalWeight > 0) {
-      const affinity = this.calculateMemoryEmotionAffinity(fact, queryKeywords);
-      const effectiveEmotionalMultiplier = 1.0 + (emotionalWeight - 1.0) * affinity;
-      finalScore *= effectiveEmotionalMultiplier;
-    }
+    const safeEmotionalWeight = emotionalWeight !== undefined && emotionalWeight > 0 ? emotionalWeight : 1.0;
+    const safeRelationshipWeight = relationshipWeight !== undefined && relationshipWeight > 0 ? relationshipWeight : 1.0;
+    const affinity = this.calculateMemoryEmotionAffinity(fact, queryKeywords);
 
-    // Phase 4.2 Integration: Apply W_rel relationship weight scaling if provided
-    if (relationshipWeight !== undefined && relationshipWeight > 0) {
-      finalScore *= relationshipWeight;
-    }
+    // Phase 4.1 + 4.2 Integration: FinalScore = BaseScore × W_e × MemoryEmotionAffinity × W_rel
+    let finalScore = baseScore * safeEmotionalWeight * affinity * safeRelationshipWeight;
 
     // Apply pinned boost if applicable
     if (isPinned) {

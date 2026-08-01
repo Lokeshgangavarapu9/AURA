@@ -46,7 +46,7 @@ export class PromptBuilder {
       const prof = relationshipContext.communicationProfile;
       const rulesList = dir.rules.map((r) => `• ${r}`).join('\n');
 
-      instruction += `\n\n=== RELATIONSHIP & PERSONALITY DIRECTIVES ===\nRelationship Level: ${relationshipContext.level}\nRelationship Health: ${relationshipContext.metrics.relationshipHealth}/100\nCommunication Profile: Formality: ${prof.preferredFormality}, Response Length: ${prof.preferredResponseLength}, Humor: ${prof.preferredHumor}\n\nPersonality Rules:\n${rulesList}\n\n${dir.safetyNotice}\n=============================================`;
+      instruction += `\n\n=== RELATIONSHIP & PERSONALITY DIRECTIVES ===\nRelationship Level: ${relationshipContext.level}\nRelationship Health: ${relationshipContext.metrics.relationshipHealth}/100\nCommunication Profile: Formality: ${prof.preferredFormality}, Response Length: ${prof.preferredResponseLength}, Humor: ${prof.preferredHumor}\n\nDirective Summary: ${dir.summaryPrompt}\n\nPersonality Rules:\n${rulesList}\n\n${dir.safetyNotice}\n=============================================`;
     }
 
     const formattedMemory = this.formatWorkingMemory(workingMemory) || rawMemoryContext;
