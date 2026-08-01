@@ -1,10 +1,11 @@
 /**
  * AURA Conversation Intelligence Engine — Master ConversationManager Orchestrator
  * Central orchestrator unifying Session Management, State Machine Transitions, Topic Tracking,
- * Emotion Analysis, and Gemini AI Execution into a clean, stateful conversation pipeline.
+ * Emotion Analysis, Relationship & Personalization Analysis, and Gemini AI Execution.
  *
  * Strictly Decoupled:
  * - Does NOT compute emotions (delegated to EmotionAnalyzer).
+ * - Does NOT compute relationship metrics (delegated to RelationshipAnalyzer).
  * - Does NOT build prompts (delegated to PromptBuilder via GeminiService).
  * - Does NOT know Prisma/SQLite (delegated to SessionManager/SessionRepository).
  * - Does NOT execute memory scoring (delegated to MemoryEngine via GeminiService).
@@ -15,6 +16,12 @@ import { ConversationStateMachine } from '../state/state.machine.js';
 import { ITopicTracker, ruleBasedTopicTracker } from '../topic/topic.tracker.js';
 import { geminiService, GeminiService } from '../../ai/gemini.service.js';
 import { emotionAnalyzer, EmotionAnalyzer, ResponseStyle } from '../../emotion/index.js';
+import {
+  relationshipAnalyzer,
+  RelationshipAnalyzer,
+  RelationshipState,
+  RelationshipLevel,
+} from '../../relationship/index.js';
 import { ConversationResult, ConversationStateEnum } from '../types/index.js';
 import { logger } from '../../utils/logger.js';
 
@@ -25,6 +32,8 @@ export interface ProcessConversationInput {
 
 export interface ExtendedConversationResult extends ConversationResult {
   responseStyle?: ResponseStyle;
+  relationshipLevel?: RelationshipLevel;
+  relationshipHealth?: number;
 }
 
 export class ConversationManager {
@@ -32,17 +41,23 @@ export class ConversationManager {
   private topicTracker: ITopicTracker;
   private geminiService: GeminiService;
   private emotionAnalyzer: EmotionAnalyzer;
+  private relationshipAnalyzer: RelationshipAnalyzer;
+
+  /** In-memory store for active session RelationshipStates */
+  private sessionRelationshipStates: Map<string, RelationshipState> = new Map();
 
   constructor(
     sessMgr: SessionManager = sessionManager,
     topicTrk: ITopicTracker = ruleBasedTopicTracker,
     geminiSvc: GeminiService = geminiService,
-    emoAnalyzer: EmotionAnalyzer = emotionAnalyzer
+    emoAnalyzer: EmotionAnalyzer = emotionAnalyzer,
+    relAnalyzer: RelationshipAnalyzer = relationshipAnalyzer
   ) {
     this.sessionManager = sessMgr;
     this.topicTracker = topicTrk;
     this.geminiService = geminiSvc;
     this.emotionAnalyzer = emoAnalyzer;
+    this.relationshipAnalyzer = relAnalyzer;
   }
 
   /**
@@ -57,15 +72,27 @@ export class ConversationManager {
       // 1. Analyze User Emotion & Get EmotionalContext (v1)
       const emotionalContext = this.emotionAnalyzer.analyze(input.userMessage);
 
-      // 2. State Transition: IDLE -> LISTENING
-      stateMachine.transitionTo('LISTENING');
-
-      // 3. Resume or create active session
+      // 2. Resume or create active session to get true sessionId
       let session = input.sessionId
         ? await this.sessionManager.resumeSession(input.sessionId)
         : await this.sessionManager.createSession({ title: 'AURA Conversation' });
 
-      // 4. Detect Topic & Topic Shifts
+      // 3. Analyze Relationship & Get RelationshipContext (v1)
+      const currentRelState = this.sessionRelationshipStates.get(session.id);
+      const relResult = this.relationshipAnalyzer.analyze({
+        userId: session.id,
+        userMessage: input.userMessage,
+        currentState: currentRelState,
+        emotionalContext,
+      });
+
+      // Update in-memory session relationship state
+      this.sessionRelationshipStates.set(session.id, relResult.updatedState);
+
+      // 4. State Transition: IDLE -> LISTENING
+      stateMachine.transitionTo('LISTENING');
+
+      // 5. Detect Topic & Topic Shifts
       const topicResult = this.topicTracker.detectTopic(input.userMessage, session.currentTopic);
 
       if (topicResult.isTopicShift) {
@@ -78,7 +105,7 @@ export class ConversationManager {
         });
       }
 
-      // 5. Append User Message to Session Thread
+      // 6. Append User Message to Session Thread
       await this.sessionManager.appendMessage({
         sessionId: session.id,
         sender: 'user',
@@ -86,27 +113,28 @@ export class ConversationManager {
         topic: topicResult.currentTopic,
       });
 
-      // 6. Load Recent Thread History for LLM Context
+      // 7. Load Recent Thread History for LLM Context
       const messageHistory = await this.sessionManager.loadRecentMessages(session.id, 10);
       const formattedHistory = messageHistory.map((m) => ({
         sender: m.sender,
         text: m.text,
       }));
 
-      // 7. State Transition: LISTENING -> THINKING
+      // 8. State Transition: LISTENING -> THINKING
       stateMachine.transitionTo('THINKING');
 
-      // 8. Call GeminiService with injected EmotionalContext
+      // 9. Call GeminiService with injected EmotionalContext and RelationshipContext
       const aiPayload = await this.geminiService.generateChatResponse({
         message: input.userMessage,
         history: formattedHistory,
         emotionalContext,
+        relationshipContext: relResult.context,
       });
 
-      // 9. State Transition: THINKING -> RESPONDING
+      // 10. State Transition: THINKING -> RESPONDING
       stateMachine.transitionTo('RESPONDING');
 
-      // 10. Append AI Response to Session Thread
+      // 11. Append AI Response to Session Thread
       await this.sessionManager.appendMessage({
         sessionId: session.id,
         sender: 'ai',
@@ -115,10 +143,10 @@ export class ConversationManager {
         topic: topicResult.currentTopic,
       });
 
-      // 11. Fetch updated session state metadata
+      // 12. Fetch updated session state metadata
       const updatedSession = await this.sessionManager.resumeSession(session.id);
 
-      // 12. State Transition: RESPONDING -> IDLE
+      // 13. State Transition: RESPONDING -> IDLE
       stateMachine.transitionTo('IDLE');
 
       const executionTimeMs = Date.now() - startTime;
@@ -129,6 +157,8 @@ export class ConversationManager {
           topic: topicResult.currentTopic,
           emotion: emotionalContext.aiTone.aiEmotion,
           responseStyle: emotionalContext.aiTone.responseStyle,
+          relationshipLevel: relResult.context.level,
+          relationshipHealth: relResult.context.metrics.relationshipHealth,
           executionTimeMs,
         },
         '🎉 ConversationManager: Completed conversation turn successfully'
@@ -143,6 +173,8 @@ export class ConversationManager {
           emotion: emotionalContext.aiTone.aiEmotion,
         },
         responseStyle: emotionalContext.aiTone.responseStyle,
+        relationshipLevel: relResult.context.level,
+        relationshipHealth: relResult.context.metrics.relationshipHealth,
         updatedContext: {
           currentTopic: topicResult.currentTopic,
           state: stateMachine.getState(),
@@ -169,6 +201,8 @@ export class ConversationManager {
           emotion: 'soothing',
         },
         responseStyle: 'gentle',
+        relationshipLevel: 'stranger',
+        relationshipHealth: 15,
         updatedContext: {
           currentTopic: 'General',
           state: 'IDLE' as ConversationStateEnum,

@@ -46,6 +46,8 @@ export const handleChatMessage = async (req: Request, res: Response): Promise<vo
       text: result.aiResponse.text,
       emotion: result.aiResponse.emotion,
       responseStyle: result.responseStyle ?? 'direct',
+      relationshipLevel: result.relationshipLevel ?? 'stranger',
+      relationshipHealth: result.relationshipHealth ?? 15,
       topic: result.topic,
       messageCount: result.messageCount,
       timestamp,

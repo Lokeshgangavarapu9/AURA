@@ -35,11 +35,12 @@ export class GeminiService {
       // 1. Retrieve Working Memory for active user message
       const workingMemory = await memoryEngine.getWorkingMemory(input.message);
 
-      // 2. Build system instructions with injected WorkingMemory and EmotionalContext guidance
+      // 2. Build system instructions with injected WorkingMemory, EmotionalContext, and RelationshipContext guidance
       const systemInstruction = PromptBuilder.buildSystemInstruction(
         workingMemory,
         input.memoryContext,
-        input.emotionalContext
+        input.emotionalContext,
+        input.relationshipContext
       );
       const contents = PromptBuilder.buildContents(input);
 

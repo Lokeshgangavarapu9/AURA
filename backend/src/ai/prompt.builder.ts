@@ -2,6 +2,7 @@ import { SYSTEM_PROMPT } from './prompts/system.prompt.js';
 import { PERSONALITY_PROMPT } from './prompts/personality.prompt.js';
 import { WorkingMemory } from '../memory/types/index.js';
 import { EmotionalContext } from '../emotion/types/index.js';
+import { RelationshipContext } from '../relationship/types/index.js';
 
 export interface ChatHistoryItem {
   sender: 'user' | 'ai';
@@ -14,11 +15,12 @@ export interface PromptBuildInput {
   workingMemory?: WorkingMemory;
   memoryContext?: string; // Fallback string slot
   emotionalContext?: EmotionalContext;
+  relationshipContext?: RelationshipContext;
 }
 
 /**
  * Prompt Builder Utility
- * Formats system instructions, personality rules, WorkingMemory, EmotionalContext response guidance, and history.
+ * Formats system instructions, personality rules, WorkingMemory, EmotionalContext, RelationshipContext, and history.
  * Pure formatting module — contains zero DB, Prisma, scoring, or Gemini calls.
  */
 export class PromptBuilder {
@@ -28,13 +30,23 @@ export class PromptBuilder {
   public static buildSystemInstruction(
     workingMemory?: WorkingMemory,
     rawMemoryContext?: string,
-    emotionalContext?: EmotionalContext
+    emotionalContext?: EmotionalContext,
+    relationshipContext?: RelationshipContext
   ): string {
     let instruction = `${SYSTEM_PROMPT}\n\n${PERSONALITY_PROMPT}`;
 
-    // Inject Emotional Response Guidance (ONLY response style and stance, NO metadata or stress scores)
+    // 1. Inject Emotional Response Guidance (appears first)
     if (emotionalContext) {
       instruction += `\n\n=== EMOTIONAL RESPONSE GUIDANCE ===\n• User Emotion: ${emotionalContext.primaryEmotion}\n• AI Emotional Stance: ${emotionalContext.aiTone.aiEmotion}\n• Response Delivery Style: ${emotionalContext.aiTone.responseStyle}\n• Guidance: Respond with an ${emotionalContext.aiTone.aiEmotion} tone using a ${emotionalContext.aiTone.responseStyle} delivery style.\n====================================`;
+    }
+
+    // 2. Inject Relationship & Personality Directives (appears after emotion)
+    if (relationshipContext) {
+      const dir = relationshipContext.directive;
+      const prof = relationshipContext.communicationProfile;
+      const rulesList = dir.rules.map((r) => `• ${r}`).join('\n');
+
+      instruction += `\n\n=== RELATIONSHIP & PERSONALITY DIRECTIVES ===\nRelationship Level: ${relationshipContext.level}\nRelationship Health: ${relationshipContext.metrics.relationshipHealth}/100\nCommunication Profile: Formality: ${prof.preferredFormality}, Response Length: ${prof.preferredResponseLength}, Humor: ${prof.preferredHumor}\n\nPersonality Rules:\n${rulesList}\n\n${dir.safetyNotice}\n=============================================`;
     }
 
     const formattedMemory = this.formatWorkingMemory(workingMemory) || rawMemoryContext;

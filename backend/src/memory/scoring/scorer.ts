@@ -48,12 +48,14 @@ export class MemoryScorer {
    * @param queryKeywords Optional list of tokenized keywords from the user prompt
    * @param referenceTime Optional reference timestamp for recency calculation (defaults to Date.now())
    * @param emotionalWeight Optional W_e factor (0.5 <= W_e <= 2.0) provided by Emotion Engine WeightCalculator
+   * @param relationshipWeight Optional W_rel factor (0.8 <= W_rel <= 1.3) provided by Relationship Engine
    */
   public static scoreMemory(
     fact: MemoryFactEntity,
     queryKeywords: string[] = [],
     referenceTime: Date = new Date(),
-    emotionalWeight?: number
+    emotionalWeight?: number,
+    relationshipWeight?: number
   ): MemoryScore {
     const importanceScore = this.calculateImportanceScore(fact.importance);
     const recencyScore = this.calculateRecencyScore(fact.lastUsedAt || fact.createdAt, referenceTime);
@@ -77,6 +79,11 @@ export class MemoryScorer {
       const affinity = this.calculateMemoryEmotionAffinity(fact, queryKeywords);
       const effectiveEmotionalMultiplier = 1.0 + (emotionalWeight - 1.0) * affinity;
       finalScore *= effectiveEmotionalMultiplier;
+    }
+
+    // Phase 4.2 Integration: Apply W_rel relationship weight scaling if provided
+    if (relationshipWeight !== undefined && relationshipWeight > 0) {
+      finalScore *= relationshipWeight;
     }
 
     // Apply pinned boost if applicable
