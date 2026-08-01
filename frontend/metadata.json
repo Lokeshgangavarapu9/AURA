@@ -1,0 +1,6 @@
+{
+  "name": "AURA - Futuristic AI Companion OS",
+  "description": "A futuristic AI companion experience with 3D avatar, real-time voice, camera vision, and interactive AI OS interface.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

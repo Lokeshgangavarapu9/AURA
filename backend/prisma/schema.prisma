@@ -1,0 +1,78 @@
+// Prisma Schema Configuration for AURA AI Companion OS
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Model (Baseline)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// User Profile Model (Single Source of Truth for Identity Details)
+model UserProfile {
+  id         String   @id @default(uuid())
+  name       String?
+  age        Int?
+  occupation String?
+  college    String?
+  bio        String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Memory Fact Model (Structured Fact, Preference, Goal & Knowledge Storage)
+model MemoryFact {
+  id          String   @id @default(uuid())
+  category    String   // 'fact' | 'preference' | 'goal' | 'relationship' | 'knowledge'
+  key         String
+  value       String
+  confidence  Float    @default(1.0)
+  importance  Int      @default(5)
+  frequency   Int      @default(1)
+  lastUsedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Reflection Model (Meta-Summaries & Long-term Insights)
+model Reflection {
+  id        String   @id @default(uuid())
+  summary   String
+  sentiment String?
+  createdAt DateTime @default(now())
+}
+
+// Conversation Session Model (Session Metadata & History Threading ONLY)
+model ConversationSession {
+  id                String              @id @default(uuid())
+  title             String?             @default("New Conversation")
+  currentTopic      String?             @default("General")
+  messageCount      Int                 @default(0)
+  isPinned          Boolean             @default(false)
+  lastInteractionAt DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  messages          ChatMessageRecord[]
+}
+
+// Chat Message Record Model (Individual Message Log per Session ONLY)
+model ChatMessageRecord {
+  id        String              @id @default(uuid())
+  sessionId String
+  sender    String              // 'user' | 'ai'
+  text      String
+  emotion   String?             @default("neutral")
+  topic     String?             @default("General")
+  createdAt DateTime            @default(now())
+  session   ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
