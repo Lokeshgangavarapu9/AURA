@@ -52,6 +52,34 @@ export interface AppSettings {
   cameraSensitivity: number;
   autoSpeakResponse: boolean;
   hapticFeedback: boolean;
+  
+  // Extended Domain Preferences
+  fontSize?: string;
+  animationsEnabled?: boolean;
+  memoryEnabled?: boolean;
+  autoSave?: boolean;
+  longTermMemory?: boolean;
+  sensitiveMemory?: boolean;
+  reviewBeforeSave?: boolean;
+  responseLength?: string;
+  personality?: string;
+  creativity?: number;
+  empathy?: number;
+  conversationStyle?: string;
+  selectedMicrophone?: string;
+  selectedSpeaker?: string;
+  noiseSuppression?: boolean;
+  echoCancellation?: boolean;
+  selectedCamera?: string;
+  eyeTracking?: boolean;
+  gestureTracking?: boolean;
+  visionEnabled?: boolean;
+  desktopNotifications?: boolean;
+  reminderSettings?: string;
+  notificationSound?: boolean;
+  cameraPermission?: boolean;
+  microphonePermission?: boolean;
+  connectorsEnabled?: string;
 }
 
 export interface ConversationHistoryItem {

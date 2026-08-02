@@ -22,7 +22,7 @@ import {
 } from './utils/mockData';
 import { soundFx } from './utils/soundEffects';
 
-import { chatService, sessionService } from './api/index.js';
+import { chatService, sessionService, settingsService } from './api/index.js';
 
 // Core Components
 import { AvatarViewer } from './components/AvatarViewer';
@@ -98,7 +98,7 @@ export default function App() {
       clearTimeout(timer);
       timer = setTimeout(() => {
         setIsIdle(true);
-      }, 3000); // 3 seconds of inactivity
+      }, 8000); // 8 seconds of inactivity (was 3s — too aggressive, hid nav before user could interact)
     };
 
     resetIdleTimer();
@@ -118,8 +118,30 @@ export default function App() {
   }, []);
 
   // Chat Messages & History
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [historyList, setHistoryList] = useState<ConversationHistoryItem[]>(SAMPLE_CONVERSATION_HISTORY);
+
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const res = await settingsService.getSettings();
+      if (res.success && res.data) {
+        setSettings((res.data as any).data);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleUpdateSettings = async (newSet: Partial<AppSettings>) => {
+    const updated = { ...settings, ...newSet };
+    setSettings(updated);
+    await settingsService.updateSettings(updated);
+  };
+
+  const handleResetSettings = async () => {
+    setSettings(DEFAULT_SETTINGS);
+    await settingsService.updateSettings(DEFAULT_SETTINGS);
+  };
 
   // Sync Web Audio Synth enabled state with settings
   useEffect(() => {
@@ -347,8 +369,8 @@ export default function App() {
         {activeTab === 'settings' && (
           <SettingsPage
             settings={settings}
-            onUpdateSettings={(newSet) => setSettings((s) => ({ ...s, ...newSet }))}
-            onResetSettings={() => setSettings(DEFAULT_SETTINGS)}
+            onUpdateSettings={handleUpdateSettings}
+            onResetSettings={handleResetSettings}
           />
         )}
       </main>

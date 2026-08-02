@@ -56,7 +56,7 @@ export const TopStatusBar: React.FC<TopStatusBarProps> = ({
 
   return (
     <header className={`fixed top-5 left-0 right-0 z-50 px-4 transition-all duration-500 ease-in-out ${
-      isIdle ? 'opacity-0 pointer-events-none -translate-y-4' : 'opacity-100 pointer-events-auto translate-y-0'
+      isIdle ? 'opacity-30 pointer-events-none -translate-y-1' : 'opacity-100 pointer-events-auto translate-y-0'
     }`}>
       <div className="max-w-3xl mx-auto flex items-center justify-between gap-2 sm:gap-3 bg-white/70 backdrop-blur-xl border border-white/90 rounded-full px-4 sm:px-6 py-2.5 shadow-sm shadow-pink-100/40 text-slate-800 transition-all">
         

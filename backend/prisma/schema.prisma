@@ -76,3 +76,48 @@ model ChatMessageRecord {
   createdAt DateTime            @default(now())
   session   ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
+
+// App Settings Model (Single Source of Truth for Device & Engine Preferences)
+model Settings {
+  id                      String   @id @default("default")
+  // Appearance
+  theme                   String   @default("obsidian")
+  accentColor             String   @default("#3b82f6")
+  avatarEyeColor          String   @default("#4338ca")
+  avatarGlowColor         String   @default("#3b82f6")
+  fontSize                String   @default("medium")
+  animationsEnabled       Boolean  @default(true)
+  soundFxEnabled          Boolean  @default(true)
+  // Memory
+  memoryEnabled           Boolean  @default(true)
+  autoSave                Boolean  @default(true)
+  longTermMemory          Boolean  @default(true)
+  sensitiveMemory         Boolean  @default(false)
+  reviewBeforeSave        Boolean  @default(false)
+  // AI Companion
+  responseLength          String   @default("medium")
+  personality             String   @default("aura-gentle")
+  creativity              Int      @default(70)
+  empathy                 Int      @default(90)
+  conversationStyle       String   @default("empathic")
+  // Voice
+  selectedMicrophone      String   @default("default")
+  selectedSpeaker         String   @default("default")
+  noiseSuppression        Boolean  @default(true)
+  echoCancellation        Boolean  @default(true)
+  // Vision
+  selectedCamera          String   @default("default")
+  eyeTracking             Boolean  @default(true)
+  gestureTracking         Boolean  @default(false)
+  visionEnabled           Boolean  @default(true)
+  cameraSensitivity       Int      @default(80)
+  // Notifications
+  desktopNotifications    Boolean  @default(true)
+  reminderSettings        String   @default("daily")
+  notificationSound       Boolean  @default(true)
+  // Privacy
+  cameraPermission        Boolean  @default(true)
+  microphonePermission     Boolean  @default(true)
+  // Connectors
+  connectorsEnabled       String   @default("[]") // JSON string list of enabled connectors
+}

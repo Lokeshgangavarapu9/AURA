@@ -39,30 +39,68 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [activeTab, setActiveTab] = useState<'appearance' | 'memory' | 'connectors' | 'companion' | 'voice' | 'camera' | 'notifications' | 'privacy' | 'about'>('memory');
 
   // Additional setting state options
-  const [selectedVoice, setSelectedVoice] = useState('Warm Female (Shizuka)');
-  const [personalityMode, setPersonalityMode] = useState('Empathetic Listener');
-  const [emotionLevel, setEmotionLevel] = useState(85);
-  const [memoryEnabled, setMemoryEnabled] = useState(true);
+  const [selectedVoice, setSelectedVoice] = useState(settings.personality || 'Warm Female (Shizuka)');
+  const [personalityMode, setPersonalityMode] = useState(settings.conversationStyle || 'Empathetic Listener');
+  const [emotionLevel, setEmotionLevel] = useState(settings.empathy ?? 85);
+  const [memoryEnabled, setMemoryEnabled] = useState(settings.memoryEnabled ?? true);
 
-  const [micDevice, setMicDevice] = useState('Default System Microphone');
-  const [speakerDevice, setSpeakerDevice] = useState('Default Speakers');
-  const [noiseReduction, setNoiseReduction] = useState(true);
+  const [micDevice, setMicDevice] = useState(settings.selectedMicrophone || 'Default System Microphone');
+  const [speakerDevice, setSpeakerDevice] = useState(settings.selectedSpeaker || 'Default Speakers');
+  const [noiseReduction, setNoiseReduction] = useState(settings.noiseSuppression ?? true);
 
-  const [selectedCamera, setSelectedCamera] = useState('Built-in FaceTime HD Camera');
-  const [eyeTracking, setEyeTracking] = useState(true);
-  const [faceTracking, setFaceTracking] = useState(true);
+  const [selectedCamera, setSelectedCamera] = useState(settings.selectedCamera || 'Built-in FaceTime HD Camera');
+  const [eyeTracking, setEyeTracking] = useState(settings.eyeTracking ?? true);
+  const [faceTracking, setFaceTracking] = useState(settings.gestureTracking ?? true);
 
-  const [desktopNotifs, setDesktopNotifs] = useState(true);
-  const [mobilePush, setMobilePush] = useState(false);
-  const [soundChime, setSoundChime] = useState(true);
+  const [desktopNotifs, setDesktopNotifs] = useState(settings.desktopNotifications ?? true);
+  const [mobilePush, setMobilePush] = useState(settings.reminderSettings === 'push');
+  const [soundChime, setSoundChime] = useState(settings.notificationSound ?? true);
 
-  const [cameraPerm, setCameraPerm] = useState(true);
-  const [micPerm, setMicPerm] = useState(true);
+  const [cameraPerm, setCameraPerm] = useState(settings.cameraPermission ?? true);
+  const [micPerm, setMicPerm] = useState(settings.microphonePermission ?? true);
 
   const [savedToast, setSavedToast] = useState(false);
 
+  // Sync props to local state when settings change
+  React.useEffect(() => {
+    if (settings) {
+      if (settings.personality) setSelectedVoice(settings.personality);
+      if (settings.conversationStyle) setPersonalityMode(settings.conversationStyle);
+      if (settings.empathy !== undefined) setEmotionLevel(settings.empathy);
+      if (settings.memoryEnabled !== undefined) setMemoryEnabled(settings.memoryEnabled);
+      if (settings.selectedMicrophone) setMicDevice(settings.selectedMicrophone);
+      if (settings.selectedSpeaker) setSpeakerDevice(settings.selectedSpeaker);
+      if (settings.noiseSuppression !== undefined) setNoiseReduction(settings.noiseSuppression);
+      if (settings.selectedCamera) setSelectedCamera(settings.selectedCamera);
+      if (settings.eyeTracking !== undefined) setEyeTracking(settings.eyeTracking);
+      if (settings.gestureTracking !== undefined) setFaceTracking(settings.gestureTracking);
+      if (settings.desktopNotifications !== undefined) setDesktopNotifs(settings.desktopNotifications);
+      if (settings.reminderSettings) setMobilePush(settings.reminderSettings === 'push');
+      if (settings.notificationSound !== undefined) setSoundChime(settings.notificationSound);
+      if (settings.cameraPermission !== undefined) setCameraPerm(settings.cameraPermission);
+      if (settings.microphonePermission !== undefined) setMicPerm(settings.microphonePermission);
+    }
+  }, [settings]);
+
   const handleSave = () => {
     soundFx.playClick();
+    onUpdateSettings({
+      personality: selectedVoice,
+      conversationStyle: personalityMode,
+      empathy: emotionLevel,
+      memoryEnabled,
+      selectedMicrophone: micDevice,
+      selectedSpeaker: speakerDevice,
+      noiseSuppression: noiseReduction,
+      selectedCamera,
+      eyeTracking,
+      gestureTracking: faceTracking,
+      desktopNotifications: desktopNotifs,
+      reminderSettings: mobilePush ? 'push' : 'daily',
+      notificationSound: soundChime,
+      cameraPermission: cameraPerm,
+      microphonePermission: micPerm,
+    });
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 2500);
   };

@@ -24,7 +24,7 @@ export const FloatingControlsBar: React.FC<FloatingControlsBarProps> = ({
   return (
     <div
       className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center justify-center gap-3.5 transition-all duration-500 ease-in-out ${
-        isIdle ? 'opacity-0 pointer-events-none translate-y-4' : 'opacity-100 pointer-events-auto translate-y-0'
+        isIdle ? 'opacity-20 pointer-events-none translate-y-2' : 'opacity-100 pointer-events-auto translate-y-0'
       }`}
     >
       {/* 🎤 Speak Button */}

@@ -10,6 +10,7 @@ export const ENDPOINTS = {
     SEND_MESSAGE: '/chat',
     GET_HISTORY: '/chat/history',
     CLEAR_HISTORY: '/chat/history/clear',
+    UPLOAD: '/upload',
   },
 
   SESSIONS: {
