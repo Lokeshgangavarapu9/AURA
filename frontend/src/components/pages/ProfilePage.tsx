@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Heart,
@@ -19,19 +19,69 @@ import {
   Star
 } from 'lucide-react';
 import { soundFx } from '../../utils/soundEffects';
+import { profileService } from '../../api/index.js';
 
 export interface ProfilePageProps {
   onNavigate: (page: string) => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   // Personalization editable state
   const [userNickname, setUserNickname] = useState('Alex');
   const [companionNickname, setCompanionNickname] = useState('Shizuka');
   const [selectedTheme, setSelectedTheme] = useState('Blush Rose & Warm White');
   const [selectedLanguage, setSelectedLanguage] = useState('English (US)');
-
   const [isEditingNicknames, setIsEditingNicknames] = useState(false);
+
+  const fetchProfile = async () => {
+    setLoading(true);
+    const res = await profileService.getProfile();
+    if (res.success && res.data) {
+      const data = (res.data as any).data;
+      setProfileData(data);
+      if (data.personalization) {
+        setUserNickname(data.personalization.nickname || 'Alex');
+        setCompanionNickname(data.personalization.companionName || 'Shizuka');
+        setSelectedTheme(data.personalization.theme || 'Blush Rose & Warm White');
+        setSelectedLanguage(data.personalization.language || 'English (US)');
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const handleToggleEdit = async () => {
+    soundFx.playClick();
+    if (isEditingNicknames) {
+      // Save changes to backend
+      await profileService.updateProfile({
+        name: userNickname,
+        personalization: {
+          nickname: userNickname,
+          companionName: companionNickname,
+          theme: selectedTheme,
+          language: selectedLanguage,
+        }
+      });
+      fetchProfile();
+    }
+    setIsEditingNicknames(!isEditingNicknames);
+  };
+
+  if (loading || !profileData) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 py-24 sm:py-28 text-center space-y-4 text-slate-500">
+        <Sparkles className="w-8 h-8 text-pink-400 animate-spin mx-auto" />
+        <p className="text-sm font-medium">Entering sanctuary, loading profile data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-24 sm:py-28 text-slate-800 animate-in fade-in duration-300">
@@ -71,25 +121,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                       Companion Gold
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-500 font-medium">@alexvance • alex.vance@example.com</p>
+                  <p className="text-xs text-slate-500 font-medium">{profileData.email}</p>
                 </div>
                 
                 <button
-                  onClick={() => {
-                    soundFx.playClick();
-                    setIsEditingNicknames(!isEditingNicknames);
-                  }}
+                  onClick={handleToggleEdit}
                   className="px-3.5 py-1.5 rounded-xl glass-button text-xs font-semibold text-slate-700 hover:text-pink-600 flex items-center gap-1.5 self-center sm:self-auto"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
-                  <span>{isEditingNicknames ? 'Done Editing' : 'Edit Personalization'}</span>
+                  <span>{isEditingNicknames ? 'Done Editing & Save' : 'Edit Personalization'}</span>
                 </button>
               </div>
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-1 text-xs text-slate-500">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-pink-500" />
-                  Joined August 2026
+                  Together {profileData.daysTogether} Days
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-purple-500" />
@@ -116,31 +163,31 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <div className="bg-white/70 border border-white rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
               <Sparkles className="w-4 h-4 text-pink-500" />
               <span className="text-[11px] text-slate-500 font-medium">Friendship Level</span>
-              <span className="text-sm font-bold text-slate-800">Soulful Harmony</span>
+              <span className="text-sm font-bold text-slate-800 capitalize">{profileData.relationshipLevel}</span>
             </div>
 
             <div className="bg-white/70 border border-white rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
               <Calendar className="w-4 h-4 text-rose-500" />
               <span className="text-[11px] text-slate-500 font-medium">Days Together</span>
-              <span className="text-sm font-bold text-slate-800">42 Days</span>
+              <span className="text-sm font-bold text-slate-800">{profileData.daysTogether} Days</span>
             </div>
 
             <div className="bg-white/70 border border-white rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
               <MessageSquare className="w-4 h-4 text-purple-500" />
               <span className="text-[11px] text-slate-500 font-medium">Conversations</span>
-              <span className="text-sm font-bold text-slate-800">158 Chats</span>
+              <span className="text-sm font-bold text-slate-800">{profileData.statistics.totalConversations} Chats</span>
             </div>
 
             <div className="bg-white/70 border border-white rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
               <Mic className="w-4 h-4 text-amber-500" />
-              <span className="text-[11px] text-slate-500 font-medium">Voice Calls</span>
-              <span className="text-sm font-bold text-slate-800">34 Calls</span>
+              <span className="text-[11px] text-slate-500 font-medium">Trust Score</span>
+              <span className="text-sm font-bold text-slate-800">{profileData.statistics.trustScore} / 100</span>
             </div>
 
             <div className="col-span-2 sm:col-span-1 bg-white/70 border border-white rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
               <Camera className="w-4 h-4 text-emerald-500" />
-              <span className="text-[11px] text-slate-500 font-medium">Camera Sessions</span>
-              <span className="text-sm font-bold text-slate-800">19 Sessions</span>
+              <span className="text-[11px] text-slate-500 font-medium">Health Resonance</span>
+              <span className="text-sm font-bold text-slate-800">{profileData.statistics.relationshipHealth}%</span>
             </div>
           </div>
         </div>
@@ -161,9 +208,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <div className="bg-white/60 border border-white/80 rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-pink-500" /> Messages Sent
+                  <MessageSquare className="w-3.5 h-3.5 text-pink-500" /> Messages Logged
                 </span>
-                <span className="font-bold text-slate-800">1,240</span>
+                <span className="font-bold text-slate-800">{profileData.statistics.totalMessages}</span>
               </div>
               <div className="w-full bg-pink-100/70 h-2 rounded-full overflow-hidden">
                 <div className="bg-gradient-to-r from-pink-400 to-rose-400 h-full w-[82%]" />
@@ -173,9 +220,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <div className="bg-white/60 border border-white/80 rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-purple-500" /> Hours Together
+                  <Clock className="w-3.5 h-3.5 text-purple-500" /> Trust Index
                 </span>
-                <span className="font-bold text-slate-800">48.5 Hours</span>
+                <span className="font-bold text-slate-800">{profileData.statistics.trustScore} Trust</span>
               </div>
               <div className="w-full bg-purple-100/70 h-2 rounded-full overflow-hidden">
                 <div className="bg-gradient-to-r from-purple-400 to-pink-400 h-full w-[65%]" />
@@ -187,7 +234,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
                 <Star className="w-3.5 h-3.5 text-amber-500" /> Favorite Topics
               </span>
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {['Mindfulness', 'Late Night Thoughts', 'Creative Writing', 'Philosophy', 'Music'].map((topic) => (
+                {profileData.favoriteTopics.map((topic: string) => (
                   <span key={topic} className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/90 text-slate-700 border border-slate-100">
                     {topic}
                   </span>
@@ -198,12 +245,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
             <div className="bg-white/60 border border-white/80 rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                  <Smile className="w-3.5 h-3.5 text-emerald-500" /> AI Mood Compatibility
+                  <Smile className="w-3.5 h-3.5 text-emerald-500" /> Compatibility Sync
                 </span>
-                <span className="font-bold text-emerald-600">98% Resonance</span>
+                <span className="font-bold text-emerald-600">{profileData.statistics.relationshipHealth}% Resonance</span>
               </div>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                High emotional sync detected during voice and chat interactions.
+                Active emotional sync detected across chat logs.
               </p>
             </div>
           </div>
@@ -222,50 +269,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {[
-              {
-                title: 'Daily Streak',
-                badge: '14 Days Unbroken',
-                desc: 'Consistently connecting every single day in peaceful presence.',
-                icon: Sparkles,
-                color: 'text-amber-500 bg-amber-50'
-              },
-              {
-                title: 'Deep Conversationalist',
-                badge: '100+ Messages',
-                desc: 'Unlocked meaningful dialogue milestones with rich emotional depth.',
-                icon: MessageSquare,
-                color: 'text-pink-500 bg-pink-50'
-              },
-              {
-                title: 'Voice Companion',
-                badge: '10+ Hours Speaking',
-                desc: 'Shared authentic real-time voice sessions and soothing audio chats.',
-                icon: Mic,
-                color: 'text-purple-500 bg-purple-50'
-              },
-              {
-                title: 'Special Badges',
-                badge: 'Early Companion • Serene Listener',
-                desc: 'Founding member of the warm AI Companion sanctuary.',
-                icon: Award,
-                color: 'text-rose-500 bg-rose-50'
-              }
-            ].map((ach, idx) => {
-              const IconComp = ach.icon;
+            {profileData.achievements.map((ach: any, idx: number) => {
               return (
                 <div key={idx} className="bg-white/70 border border-white/90 rounded-2xl p-4 flex gap-3.5 items-start">
-                  <div className={`p-2.5 rounded-2xl ${ach.color} flex-shrink-0 mt-0.5`}>
-                    <IconComp className="w-4 h-4" />
+                  <div className={`p-2.5 rounded-2xl ${ach.achieved ? 'text-amber-500 bg-amber-50' : 'text-slate-400 bg-slate-100'} flex-shrink-0 mt-0.5`}>
+                    <Award className="w-4 h-4" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-800">{ach.title}</h4>
-                      <span className="text-[10px] font-bold text-pink-600 px-2 py-0.5 rounded-full bg-pink-50 border border-pink-100">
-                        {ach.badge}
+                      <h4 className="text-xs font-bold text-slate-800">{ach.name}</h4>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${ach.achieved ? 'text-pink-600 bg-pink-50 border-pink-100' : 'text-slate-400 bg-slate-50 border-slate-150'}`}>
+                        {ach.achieved ? 'Unlocked' : 'Locked'}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal">{ach.desc}</p>
+                    <p className="text-[11px] text-slate-500 leading-normal">{ach.description}</p>
                   </div>
                 </div>
               );
@@ -274,76 +291,72 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
         </div>
 
         {/* 5. Personalization Settings */}
-        <div className="glass-card rounded-3xl p-6 sm:p-8 space-y-5">
-          <div className="flex items-center gap-2.5 border-b border-pink-100/60 pb-3">
-            <div className="p-2 rounded-2xl bg-rose-100 text-rose-600">
-              <Palette className="w-4 h-4" />
+        {isEditingNicknames && (
+          <div className="glass-card rounded-3xl p-6 sm:p-8 space-y-5">
+            <div className="flex items-center gap-2.5 border-b border-pink-100/60 pb-3">
+              <div className="p-2 rounded-2xl bg-rose-100 text-rose-600">
+                <Palette className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Personalization Settings</h3>
+                <p className="text-xs text-slate-500">Customize nicknames, language, and theme colors</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-800">Personalization</h3>
-              <p className="text-xs text-slate-500">Customize how you and your companion address each other</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Your Nickname</label>
+                <input
+                  type="text"
+                  value={userNickname}
+                  onChange={(e) => setUserNickname(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Companion Nickname</label>
+                <input
+                  type="text"
+                  value={companionNickname}
+                  onChange={(e) => setCompanionNickname(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-pink-500" /> Theme Palette
+                </label>
+                <select
+                  value={selectedTheme}
+                  onChange={(e) => setSelectedTheme(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none"
+                >
+                  <option value="Blush Rose & Warm White">Blush Rose & Warm White (Default)</option>
+                  <option value="Soft Peach Sanctuary">Soft Peach Sanctuary</option>
+                  <option value="Cream Lavender Whisper">Cream Lavender Whisper</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-purple-500" /> Language
+                </label>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none"
+                >
+                  <option value="English (US)">English (US)</option>
+                  <option value="Japanese (日本語)">Japanese (日本語)</option>
+                  <option value="French (Français)">French (Français)</option>
+                  <option value="Spanish (Español)">Spanish (Español)</option>
+                </select>
+              </div>
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Nickname */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Your Nickname</label>
-              <input
-                type="text"
-                value={userNickname}
-                onChange={(e) => setUserNickname(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
-                placeholder="e.g. Alex"
-              />
-            </div>
-
-            {/* Companion Nickname */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Companion Nickname</label>
-              <input
-                type="text"
-                value={companionNickname}
-                onChange={(e) => setCompanionNickname(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100 transition-all"
-                placeholder="e.g. Shizuka"
-              />
-            </div>
-
-            {/* Theme */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-pink-500" /> Theme Palette
-              </label>
-              <select
-                value={selectedTheme}
-                onChange={(e) => setSelectedTheme(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 transition-all"
-              >
-                <option value="Blush Rose & Warm White">Blush Rose & Warm White (Default)</option>
-                <option value="Soft Peach Sanctuary">Soft Peach Sanctuary</option>
-                <option value="Cream Lavender Whisper">Cream Lavender Whisper</option>
-              </select>
-            </div>
-
-            {/* Language */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-purple-500" /> Preferred Language
-              </label>
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white/80 border border-slate-200/80 text-xs text-slate-800 focus:outline-none focus:border-pink-400 transition-all"
-              >
-                <option value="English (US)">English (US)</option>
-                <option value="Japanese (日本語)">Japanese (日本語)</option>
-                <option value="French (Français)">French (Français)</option>
-                <option value="Spanish (Español)">Spanish (Español)</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Navigation Action Footer */}
         <div className="flex justify-center pt-2">
@@ -362,3 +375,4 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+export default ProfilePage;

@@ -96,3 +96,39 @@ export interface EmotionalContext {
   detectorMetadata: DetectorMetadata;
   timestamp: Date;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 5 Additions — Multimodal Emotion Types
+// All types below are ADDITIVE. EmotionalContext (v1) above is unchanged.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per-modality detection breakdown included in MultimodalEmotionContext.
+ * Provides full provenance and traceability of each signal source.
+ */
+export interface ModalEmotionResult {
+  /** Source modality tag identifying the detector that produced this result */
+  source: DetectorSource;
+  /** Primary emotion detected by this modality */
+  primaryEmotion: EmotionCategory;
+  /** Full emotion distribution from this modality */
+  emotions: EmotionScore[];
+  /** Detector confidence and processing metadata */
+  detector: DetectorMetadata;
+}
+
+/**
+ * Version 2 extended EmotionalContext — Phase 5 multimodal output.
+ * Extends the standard v1 EmotionalContext with per-modality breakdown.
+ *
+ * Downstream consumers still receive EmotionalContext (v1) from existing
+ * EmotionAnalyzer. MultimodalEmotionContext is opt-in via MultimodalEmotionAnalyzer
+ * when richer provenance information is required (e.g. diagnostics, avatar rendering).
+ */
+export interface MultimodalEmotionContext extends EmotionalContext {
+  version: 1; // preserves v1 compatibility — fusedResult is valid as EmotionalContext
+  /** Per-modality breakdown of all signals that contributed to the fused result */
+  modalResults: ModalEmotionResult[];
+  /** Count of modalities that actively contributed to this turn's fusion */
+  activeModalityCount: number;
+}

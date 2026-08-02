@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ChatMessage } from '../../types';
 import { soundFx } from '../../utils/soundEffects';
+import { chatService } from '../../api/index.js';
 
 export interface ChatPageProps {
   messages: ChatMessage[];
@@ -75,14 +76,30 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleSimulateImageUpload = () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAttachClick = () => {
     soundFx.playClick();
-    setAttachedImage('companion_memory.png');
+    fileInputRef.current?.click();
   };
 
-  const handleSimulateFileUpload = () => {
-    soundFx.playClick();
-    setAttachedFile('reflection_notes.pdf');
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Content = reader.result as string;
+      const res = await chatService.uploadFile(file.name, base64Content);
+      if (res.success) {
+        if (file.type.startsWith('image/')) {
+          setAttachedImage(file.name);
+        } else {
+          setAttachedFile(file.name);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const triggerPlaceholderFeature = (featureName: string) => {
@@ -273,8 +290,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({
 
       {/* Input Glass Control Panel */}
       <div className="mt-3 glass-card rounded-3xl p-3 flex items-center gap-2 border border-white/90 shadow-lg shadow-pink-100/20">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+          accept="image/*,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown"
+        />
+
         <button
-          onClick={handleSimulateImageUpload}
+          onClick={handleAttachClick}
           className="p-2.5 rounded-2xl hover:bg-pink-50 text-slate-400 hover:text-pink-600 transition-colors"
           title="Attach Image"
         >
@@ -282,7 +307,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
         </button>
 
         <button
-          onClick={handleSimulateFileUpload}
+          onClick={handleAttachClick}
           className="p-2.5 rounded-2xl hover:bg-purple-50 text-slate-400 hover:text-purple-600 transition-colors"
           title="Attach File"
         >

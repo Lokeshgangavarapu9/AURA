@@ -41,6 +41,16 @@ export const chatService = {
   },
 
   /**
+   * Uploads base64 encoded file data to backend
+   */
+  async uploadFile(filename: string, base64: string): Promise<ApiResult<{ filename: string, url: string }>> {
+    return httpClient.post<{ filename: string, url: string }>(ENDPOINTS.CHAT.UPLOAD, {
+      filename,
+      base64,
+    });
+  },
+
+  /**
    * Placeholder for fetching conversation history from database
    */
   async getHistory(): Promise<ApiResult<unknown[]>> {
