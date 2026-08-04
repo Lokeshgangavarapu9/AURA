@@ -40,7 +40,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onNavigate }) => {
     setLoading(true);
     const res = await profileService.getProfile();
     if (res.success && res.data) {
-      const data = (res.data as any).data;
+      const rawData = (res.data as any).data || (res.data as any);
+      const data = {
+        email: rawData?.email || 'alex@aura.os',
+        daysTogether: rawData?.daysTogether ?? 1,
+        relationshipLevel: rawData?.relationshipLevel || 'stranger',
+        statistics: rawData?.statistics || { totalConversations: 0, totalMessages: 0, trustScore: 15, relationshipHealth: 20 },
+        favoriteTopics: rawData?.favoriteTopics || ['General'],
+        achievements: rawData?.achievements || [],
+        personalization: rawData?.personalization || { nickname: 'Alex', companionName: 'Shizuka', theme: 'Blush Rose & Warm White', language: 'English (US)' }
+      };
       setProfileData(data);
       if (data.personalization) {
         setUserNickname(data.personalization.nickname || 'Alex');

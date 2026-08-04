@@ -80,6 +80,7 @@ export interface AppSettings {
   cameraPermission?: boolean;
   microphonePermission?: boolean;
   connectorsEnabled?: string;
+  developerMode?: boolean;
 }
 
 export interface ConversationHistoryItem {

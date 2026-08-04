@@ -139,6 +139,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             { id: 'camera', label: 'Camera Vision', icon: Camera },
             { id: 'notifications', label: 'Notifications', icon: Bell },
             { id: 'privacy', label: 'Privacy & Data', icon: Shield },
+            { id: 'developer', label: 'Developer Mode', icon: Sliders },
             { id: 'about', label: 'About App', icon: Info }
           ].map((sec) => {
             const IconComp = sec.icon;
@@ -556,6 +557,63 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Clear Chat History</span>
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Developer Mode */}
+          {activeTab === ('developer' as any) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="border-b border-pink-100/60 pb-3">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-indigo-500" />
+                  Developer Mode & System Inspectors
+                </h3>
+                <p className="text-xs text-slate-500">Toggle debug panels, stream inspectors, runtime logs, and telemetry</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">Developer Mode Toggle</h4>
+                    <p className="text-[11px] text-slate-500">
+                      When enabled, allows opening Audio Stream Inspector, Vision Inspector, Runtime Logs, and Memory Inspectors.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      soundFx.playClick();
+                      onUpdateSettings({ developerMode: !settings.developerMode });
+                    }}
+                    className={`w-12 h-6.5 rounded-full transition-colors relative cursor-pointer ${
+                      settings.developerMode ? 'bg-indigo-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`w-4.5 h-4.5 rounded-full bg-white absolute top-1 transition-transform ${
+                        settings.developerMode ? 'right-1' : 'left-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-xs font-semibold text-slate-700">Debug Inspectors Status</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-3 rounded-xl bg-white border border-slate-200">
+                      <span className="font-semibold text-slate-700">Audio Stream Inspector:</span>
+                      <span className="ml-1 text-slate-500">
+                        {settings.developerMode ? 'Available in Dev Mode' : 'Hidden (Production Clean UI)'}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-slate-200">
+                      <span className="font-semibold text-slate-700">Vision Sensor Feed:</span>
+                      <span className="ml-1 text-slate-500">
+                        {settings.developerMode ? 'Available in Dev Mode' : 'Hidden (Production Clean UI)'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

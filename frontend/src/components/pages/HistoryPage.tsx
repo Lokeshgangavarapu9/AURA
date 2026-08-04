@@ -11,7 +11,8 @@ import {
   Check,
   X,
   Plus,
-  Tag
+  Tag,
+  Mic
 } from 'lucide-react';
 import { soundFx } from '../../utils/soundEffects';
 import { sessionService, SessionMetadataPayload } from '../../api/index.js';
@@ -194,6 +195,11 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ onNavigateToChat }) =>
                     <span className="flex items-center gap-1 text-purple-600 font-semibold">
                       <Tag className="w-3 h-3" />
                       {session.currentTopic || 'General'}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1 text-pink-600 font-medium">
+                      <Mic className="w-3 h-3" />
+                      Voice Enabled
                     </span>
                     <span>•</span>
                     <span className="flex items-center gap-1">

@@ -16,6 +16,8 @@ import { ConversationStateMachine } from '../state/state.machine.js';
 import { ITopicTracker, ruleBasedTopicTracker } from '../topic/topic.tracker.js';
 import { geminiService, GeminiService } from '../../ai/gemini.service.js';
 import { emotionAnalyzer, EmotionAnalyzer, ResponseStyle } from '../../emotion/index.js';
+import { runtimeOrchestrator } from '../../runtime/index.js';
+import { cognitiveEngine } from '../../cognitive/index.js';
 import {
   relationshipAnalyzer,
   RelationshipAnalyzer,
@@ -72,6 +74,12 @@ export class ConversationManager {
       // 1. Analyze User Emotion & Get EmotionalContext (v1)
       const emotionalContext = this.emotionAnalyzer.analyze(input.userMessage);
 
+      // 1.5 Cognitive Intelligence Engine Planning
+      const cognitivePlan = cognitiveEngine.planTurn({
+        userMessage: input.userMessage,
+        sessionId: input.sessionId,
+      });
+
       // 2. Resume or create active session to get true sessionId
       let session = input.sessionId
         ? await this.sessionManager.resumeSession(input.sessionId)
@@ -123,13 +131,19 @@ export class ConversationManager {
       // 8. State Transition: LISTENING -> THINKING
       stateMachine.transitionTo('THINKING');
 
-      // 9. Call GeminiService with injected EmotionalContext and RelationshipContext
-      const aiPayload = await this.geminiService.generateChatResponse({
-        message: input.userMessage,
-        history: formattedHistory,
+      // 9. Delegate Execution to AURA Core Runtime Orchestrator
+      const runtimeResult = await runtimeOrchestrator.executeTurn({
+        userMessage: input.userMessage,
+        sessionId: session.id,
         emotionalContext,
         relationshipContext: relResult.context,
+        cognitivePlan,
       });
+
+      const aiPayload = {
+        text: runtimeResult.responseText,
+        emotion: runtimeResult.emotion as any,
+      };
 
       // 10. State Transition: THINKING -> RESPONDING
       stateMachine.transitionTo('RESPONDING');

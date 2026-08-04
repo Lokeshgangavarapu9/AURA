@@ -22,7 +22,63 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required for Prisma DB access'),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters long'),
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters long'),
+  
+  // AI Provider Configuration & API Keys
+  ACTIVE_AI_PROVIDER: z.string().optional().default('gemini'),
+  ACTIVE_AI_MODEL: z.string().optional().default('gemini-2.5-flash'),
+  USE_PROVIDER_ABSTRACTION: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+  
   GEMINI_API_KEY: z.string().optional().default(''),
+  OPENAI_API_KEY: z.string().optional().default(''),
+  GROQ_API_KEY: z.string().optional().default(''),
+  OPENROUTER_API_KEY: z.string().optional().default(''),
+  CEREBRAS_API_KEY: z.string().optional().default(''),
+  HUGGINGFACE_API_KEY: z.string().optional().default(''),
+  TOGETHER_API_KEY: z.string().optional().default(''),
+
+  // AI Generation Settings
+  AI_TEMPERATURE: z.coerce.number().optional().default(0.8),
+  AI_MAX_TOKENS: z.coerce.number().int().optional().default(4096),
+  AI_TIMEOUT_MS: z.coerce.number().int().optional().default(30000),
+  AI_MAX_RETRIES: z.coerce.number().int().optional().default(3),
+  AI_STREAMING: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+
+  // Voice Configuration
+  VOICE_STT_PROVIDER: z.string().optional().default('google'),
+  VOICE_TTS_PROVIDER: z.string().optional().default('google'),
+  VOICE_LANGUAGE: z.string().optional().default('en-US'),
+  VOICE_NAME: z.string().optional().default('en-US-Neural2-F'),
+  VOICE_RATE: z.coerce.number().optional().default(1.0),
+  VOICE_PITCH: z.coerce.number().optional().default(0.0),
+  VOICE_VOLUME: z.coerce.number().optional().default(1.0),
+  VOICE_AUDIO_FORMAT: z.string().optional().default('MP3'),
+  VOICE_INTERIM_RESULTS: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+  VOICE_AUTO_PUNCTUATION: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+  VOICE_CONFIDENCE_THRESHOLD: z.coerce.number().optional().default(0.70),
+  VOICE_STREAMING: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+  VOICE_TIMEOUT_MS: z.coerce.number().int().optional().default(30000),
+
+  // Camera / Vision Configuration
+  VISION_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val !== 'false'),
+  VISION_PROVIDER: z.string().optional().default('google'),
 });
 
 // Parse and validate process.env

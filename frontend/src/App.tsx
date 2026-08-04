@@ -85,6 +85,22 @@ export default function App() {
 
   // Microphone stream modal toggle
   const [isMicModalOpen, setIsMicModalOpen] = useState(false);
+  const liveVoiceManagerRef = React.useRef<any>(null);
+
+  // Time-of-day session greeting (Greets once per session)
+  const [sessionGreeting, setSessionGreeting] = useState<string | null>(() => {
+    const hour = new Date().getHours();
+    const salutation = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    return `${salutation}, Lokesh. It's wonderful to see you again. How can I accompany you today?`;
+  });
+
+  // Auto-fade greeting banner after 6 seconds
+  useEffect(() => {
+    if (sessionGreeting) {
+      const t = setTimeout(() => setSessionGreeting(null), 6000);
+      return () => clearTimeout(t);
+    }
+  }, [sessionGreeting]);
 
   // User Inactivity / Idle Auto-Hide State for Home Controls (3 seconds)
   const [isIdle, setIsIdle] = useState(false);
@@ -247,36 +263,98 @@ export default function App() {
     }, 3800);
   };
 
-  // Toggle Microphone Realtime Voice
-  const handleToggleMic = () => {
+  // Toggle Microphone Realtime Voice (Clean Production Experience vs Developer Mode)
+  const handleToggleMic = async () => {
     const nextMicActive = !audioState.isMicActive;
     setAudioState((prev) => ({ ...prev, isMicActive: nextMicActive }));
 
     if (nextMicActive) {
       setStatus('listening');
       setEmotion('curious');
-      setIsMicModalOpen(true);
       soundFx.playStatusChange('listening');
+
+      // 1. Request Microphone Permission and Start Live Voice Duplex Stream
+      try {
+        if (!liveVoiceManagerRef.current) {
+          const { LiveVoiceSyncManager } = await import('./services/live-voice-sync.manager.js');
+          liveVoiceManagerRef.current = new LiveVoiceSyncManager({
+            wsUrl: `ws://${window.location.hostname}:5000/ws/voice`,
+            onStateChanged: (newStatus, newEmotion) => {
+              setStatus(newStatus);
+              if (newEmotion) setEmotion(newEmotion);
+              setIsSpeaking(newStatus === 'speaking');
+            },
+            onTranscriptionReceived: (text, isFinal) => {
+              setAudioState((a) => ({ ...a, transcription: text }));
+            },
+            onAiResponseText: (aiText) => {
+              // Append to messages & update active session history
+              const now = new Date();
+              const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `msg-${Date.now()}`,
+                  sender: 'ai',
+                  text: aiText,
+                  timestamp: timeStr,
+                  emotion: 'happy',
+                },
+              ]);
+            },
+          });
+        }
+        await liveVoiceManagerRef.current.startDuplexSession(activeSession.sessionId || undefined);
+      } catch (err) {
+        console.error('❌ App: Microphone access denied or connection error', err);
+        setAudioState((prev) => ({ ...prev, isMicActive: false }));
+        setStatus('idle');
+        setEmotion('soothing');
+        return;
+      }
+
+      // In Developer Mode, open Audio Stream Inspector Modal
+      if (settings.developerMode) {
+        setIsMicModalOpen(true);
+      } else {
+        setIsMicModalOpen(false);
+      }
     } else {
+      // Complete Resource Cleanup
+      if (liveVoiceManagerRef.current) {
+        liveVoiceManagerRef.current.stopDuplexSession();
+      }
+      setIsMicModalOpen(false);
       setStatus('idle');
       setEmotion('neutral');
       soundFx.playStatusChange('idle');
     }
   };
 
-  // Toggle Camera Vision Window
-  const handleToggleCamera = () => {
-    setCameraState((prev) => {
-      const nextOpen = !prev.isOpen;
-      if (nextOpen) {
+  // Toggle Camera Vision Window (Clean Production Experience vs Developer Mode)
+  const handleToggleCamera = async () => {
+    const nextOpen = !cameraState.isOpen;
+
+    if (nextOpen) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Stream acquired successfully — stop initial test track
+        stream.getTracks().forEach((t) => t.stop());
         setStatus('vision');
         soundFx.playStatusChange('vision');
-      } else {
-        setStatus('idle');
-        soundFx.playStatusChange('idle');
+      } catch (err) {
+        console.error('❌ App: Camera permission denied or device not found', err);
+        return;
       }
-      return { ...prev, isOpen: nextOpen };
-    });
+    } else {
+      setStatus('idle');
+      soundFx.playStatusChange('idle');
+    }
+
+    setCameraState((prev) => ({
+      ...prev,
+      isOpen: settings.developerMode ? nextOpen : false,
+    }));
   };
 
   // User Sent Text Message
@@ -295,13 +373,25 @@ export default function App() {
     triggerAIResponse(text);
   };
 
+  const bgClass = settings.theme === 'cyberpunk' ? 'bg-peach-sanctuary'
+                : settings.theme === 'minimal' ? 'bg-lavender-whisper'
+                : 'bg-paper-cloud';
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-paper-cloud paper-grain font-sans text-slate-800 select-none">
+    <div className={`relative w-screen h-screen overflow-hidden ${bgClass} paper-grain font-sans text-slate-800 select-none`}>
       
       {/* Soft Ambient Light Highlights */}
-      <div className="pointer-events-none absolute top-[-10%] left-[20%] w-[50%] h-[50%] bg-pink-200/40 blur-[130px] rounded-full z-0" />
-      <div className="pointer-events-none absolute bottom-[-5%] right-[15%] w-[45%] h-[45%] bg-purple-200/35 blur-[120px] rounded-full z-0" />
+      <div className="pointer-events-none absolute top-[-10%] left-[20%] w-[50%] h-[50%] bg-pink-200/40 blur-[130px] rounded-full z-0 animate-pulse duration-1000" />
+      <div className="pointer-events-none absolute bottom-[-5%] right-[15%] w-[45%] h-[45%] bg-purple-200/35 blur-[120px] rounded-full z-0 animate-pulse duration-700" />
       <div className="pointer-events-none absolute top-[30%] left-[35%] w-[400px] h-[400px] bg-amber-100/50 blur-[140px] rounded-full z-0" />
+
+      {/* Ambient Floating Particles */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute top-[15%] left-[10%] w-1.5 h-1.5 bg-pink-300/40 rounded-full animate-ping" />
+        <div className="absolute top-[60%] left-[85%] w-2 h-2 bg-purple-300/30 rounded-full animate-pulse" />
+        <div className="absolute top-[75%] left-[25%] w-1.5 h-1.5 bg-amber-200/50 rounded-full animate-ping" />
+        <div className="absolute top-[35%] right-[20%] w-2 h-2 bg-rose-200/40 rounded-full animate-pulse" />
+      </div>
 
       {/* 1. Background 3D AI Companion Avatar & Interactive Circular Ring (Always rendered softly in background) */}
       <div className={`absolute inset-0 z-0 transition-opacity duration-500 ${activeTab !== 'home' ? 'opacity-30 blur-xs pointer-events-none' : 'opacity-100'}`}>
@@ -328,6 +418,14 @@ export default function App() {
         {/* PAGE 1: HOME */}
         {activeTab === 'home' && (
           <div className="relative w-full h-full">
+            {/* Session Greeting Banner (Greets once per session) */}
+            {sessionGreeting && (
+              <div className="absolute top-28 left-1/2 -translate-x-1/2 z-30 px-5 py-2.5 rounded-full bg-white/80 backdrop-blur-md border border-pink-200/80 text-xs font-semibold text-slate-700 shadow-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-4 duration-500">
+                <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping" />
+                <span>{sessionGreeting}</span>
+              </div>
+            )}
+
             {/* Home Floating Controls (Speak, Chat, Camera) */}
             <FloatingControlsBar
               isMicActive={audioState.isMicActive}
@@ -336,6 +434,7 @@ export default function App() {
               onToggleChat={() => setActiveTab('chat')}
               isCameraOpen={cameraState.isOpen}
               onToggleCamera={handleToggleCamera}
+              status={status}
               isIdle={isIdle}
             />
           </div>

@@ -1,11 +1,12 @@
 import { app } from './app.js';
 import { env, APP_CONSTANTS } from './config/index.js';
 import { connectDatabase, disconnectDatabase } from './database/client.js';
+import { VoiceGateway, voiceManager, voiceSessionManager } from './voice/index.js';
 import { logger } from './utils/logger.js';
 
 /**
  * Server Entrypoint Script
- * Initializes database connectivity, starts HTTP server, and handles OS shutdown signals.
+ * Initializes database connectivity, starts HTTP server, initializes VoiceGateway WebSocket, and handles OS shutdown signals.
  */
 async function startServer() {
   try {
@@ -19,8 +20,14 @@ async function startServer() {
       logger.info(`📌 Environment : ${env.NODE_ENV}`);
       logger.info(`📌 Listening on : http://localhost:${env.PORT}`);
       logger.info(`📌 Health Check: http://localhost:${env.PORT}${APP_CONSTANTS.API_PREFIX}/health`);
+      logger.info(`📌 Voice WS   : ws://localhost:${env.PORT}/ws/voice`);
       logger.info(`=======================================================`);
     });
+
+    // 3. Initialize VoiceGateway WebSocket Server attached to HTTP Server
+    const voiceGateway = new VoiceGateway(voiceManager, voiceSessionManager);
+    voiceGateway.initialize(server, '/ws/voice');
+    logger.info('🎙️ VoiceGateway WebSocket initialized on /ws/voice');
 
     // 3. Graceful Shutdown Signal Handler
     const shutdown = async (signal: string) => {

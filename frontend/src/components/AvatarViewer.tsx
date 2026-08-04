@@ -64,6 +64,7 @@ export const AvatarViewer: React.FC<AvatarViewerProps> = ({
     ringGroup:    THREE.Group;
     innerRingMesh: THREE.Mesh;
     placeholder:  THREE.Group;
+    rimLight?:    THREE.PointLight;
   } | null>(null);
 
   // Animation state in ref (prevents React re-render churn)
@@ -81,6 +82,13 @@ export const AvatarViewer: React.FC<AvatarViewerProps> = ({
 
   const liveTrackRef = useRef<FaceTrackData | undefined>(faceTrackPos);
   useEffect(() => { liveTrackRef.current = faceTrackPos; }, [faceTrackPos]);
+
+  // Dynamically update Three.js rim/glow light when settings glowColorHex changes
+  useEffect(() => {
+    if (sceneRef.current?.rimLight) {
+      sceneRef.current.rimLight.color.set(glowColorHex || '#f472b6');
+    }
+  }, [glowColorHex]);
 
   // ── Three.js Scene Setup ──────────────────────────────────────────────────
   useEffect(() => {
@@ -179,6 +187,7 @@ export const AvatarViewer: React.FC<AvatarViewerProps> = ({
     sceneRef.current = {
       scene, camera, renderer,
       ringGroup, innerRingMesh, placeholder,
+      rimLight: rim,
     };
 
     // 7. Load VRM Avatar
@@ -346,29 +355,38 @@ export const AvatarViewer: React.FC<AvatarViewerProps> = ({
         if (vrm.expressionManager) {
           const em = vrm.expressionManager;
 
-          // Lip sync — compatible with TTS / Gemini Live API viseme stream
-          if (isSpeaking) {
-            st.speakCycle += delta * 12;
-            em.setValue('aa', Math.abs(Math.sin(st.speakCycle)) * 0.65);
+          // Enhanced Voice State & Expression Morph Weights (Product Polish Sprint P1)
+          if (isSpeaking || status === 'speaking') {
+            st.speakCycle += delta * 14;
+            // Dynamic viseme mouth opening (AA/IH blend) synced with speech synthesis
+            em.setValue('aa', Math.abs(Math.sin(st.speakCycle)) * 0.70);
+            em.setValue('ih', Math.abs(Math.cos(st.speakCycle * 0.8)) * 0.35);
           } else {
             em.setValue('aa', 0);
+            em.setValue('ih', 0);
           }
 
-          // Expressions with a subtle warm neutral baseline
+          // State-driven facial expressions & micro-animations
+          const isListeningMode = isListening || status === 'listening';
+          const isThinkingMode  = status === 'thinking';
+          const isVisionMode    = status === 'vision';
+
           em.setValue('happy',
-            emotion === 'happy' ? 0.75 : 0
+            emotion === 'happy' ? 0.80 : 0
           );
           em.setValue('relaxed',
             emotion === 'soothing' ? 0.85 :
-            emotion === 'thinking' ? 0.30 :
+            isThinkingMode         ? 0.35 :
             emotion === 'neutral'  ? 0.25 :
             0
           );
           em.setValue('surprised',
-            emotion === 'curious' ? 0.60 : 0
+            isListeningMode || isVisionMode || emotion === 'curious' ? 0.65 : 0
           );
           em.setValue('sad',
-            emotion === 'thinking' ? 0.12 : 0
+            emotion === 'sad' ? 0.70 :
+            isThinkingMode    ? 0.18 :
+            0
           );
         }
 

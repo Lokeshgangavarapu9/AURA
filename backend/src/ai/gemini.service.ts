@@ -3,6 +3,7 @@ import { PromptBuilder, PromptBuildInput } from './prompt.builder.js';
 import { memoryEngine } from '../memory/engine/memory.engine.js';
 import { env, APP_CONSTANTS } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { providerManager } from './providers/index.js';
 
 export interface GeminiResponsePayload {
   text: string;
@@ -30,8 +31,6 @@ export class GeminiService {
     }
 
     try {
-      const ai = geminiClient.getClient();
-
       // 1. Retrieve Working Memory for active user message
       const workingMemory = await memoryEngine.getWorkingMemory(input.message);
 
@@ -42,24 +41,36 @@ export class GeminiService {
         input.emotionalContext,
         input.relationshipContext
       );
-      const contents = PromptBuilder.buildContents(input);
 
       logger.debug(
-        { model: this.defaultModel, tokensEst: workingMemory.totalTokensEstimate },
-        'Firing request to Google AI Studio Gemini API with working memory...'
+        { activeProvider: providerManager.getActiveProviderId(), tokensEst: workingMemory.totalTokensEstimate },
+        'Firing request through ProviderManager LLM Abstraction Layer...'
       );
 
-      const response = await ai.models.generateContent({
-        model: this.defaultModel,
-        contents,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          temperature: 0.7,
-        },
-      });
+      let responseText = '';
 
-      const responseText = response.text || '';
+      if (env.USE_PROVIDER_ABSTRACTION) {
+        const providerRes = await providerManager.generateText({
+          prompt: input.message,
+          systemInstruction,
+          responseFormat: 'json',
+        });
+        responseText = providerRes.text;
+      } else {
+        // Legacy direct client fallback
+        const ai = geminiClient.getClient();
+        const contents = PromptBuilder.buildContents(input);
+        const response = await ai.models.generateContent({
+          model: this.defaultModel,
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            temperature: 0.7,
+          },
+        });
+        responseText = response.text || '';
+      }
       logger.debug({ responseText }, 'Received raw response from Gemini API');
 
       const parsedResult = this.parseJsonResponse(responseText, input.message);

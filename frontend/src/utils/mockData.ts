@@ -121,4 +121,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cameraPermission: true,
   microphonePermission: true,
   connectorsEnabled: '[]',
+  developerMode: false,
 };

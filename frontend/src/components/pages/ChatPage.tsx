@@ -52,6 +52,23 @@ export const ChatPage: React.FC<ChatPageProps> = ({
     scrollToBottom();
   }, [messages, isThinking]);
 
+  // Rotating input placeholder suggestions
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const placeholders = [
+    "Share your thoughts with Shizuka...",
+    "Ask me anything...",
+    "Let's solve something together...",
+    "Talk with me...",
+    "Need help coding or thinking?"
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSend = () => {
     if (!inputText.trim() && !attachedImage && !attachedFile) return;
 
@@ -319,8 +336,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Share your thoughts with Shizuka..."
-          className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+          placeholder={placeholders[placeholderIndex]}
+          className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none transition-all duration-300"
         />
 
         <button
